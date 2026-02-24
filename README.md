@@ -21,7 +21,7 @@ pyinstaller --onefile --clean --strip --add-data "default.yaml:." --name reget r
 ```
 
 ## Usage
-```bash
+```text
 usage: reget [-h] [--pattern PATTERN] [--custom CUSTOM] [--highlight]
              [--stat] [--unique] [--output {summary,json,yaml}]
              [--timeout TIMEOUT] [--large] [--exit-on-match]
@@ -29,7 +29,7 @@ usage: reget [-h] [--pattern PATTERN] [--custom CUSTOM] [--highlight]
 ```
 
 ## Arguments
-```bash
+```text
 positional arguments:
   file                  Input file to process (default: stdin)
 
