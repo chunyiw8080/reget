@@ -105,8 +105,8 @@ Only available with --output=summary. Mutually exclusive with --exit-on-match.
                         ''')
     parser.add_argument('--exit-on-match', '-e', 
                         action='store_true',
-                        help='''Exit immediately with status code 1 when any match is found. Designed for CI/CD security gates. 
-                        Mutually exclusive with --stat.
+                        help='''Exit immediately with status code 1 when any match is found.
+Mutually exclusive with --stat.
                         ''')
     parser.add_argument('--timeout', '-t', 
                         type=float, 
