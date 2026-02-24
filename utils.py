@@ -1,13 +1,14 @@
 """工具函数和常量定义"""
 import sys
+import regex
+import os
 from pathlib import Path
 
-# --- 常量与配置 ---
 SYSTEM_CONFIG_PATH = Path('/etc/reget/reget.yaml')
-LOCAL_CONFIG_PATH = Path('./reget.yaml')
+# SYSTEM_CONFIG_PATH = Path('./default.yaml')
 DEFAULT_TIMEOUT = 0.5
 
-# ANSI 颜色代码
+# ANSI Color codes for highlighting
 class Colors:
     RESET = '\033[0m'
     BOLD = '\033[1m'
@@ -24,16 +25,51 @@ class Colors:
 
 
 def check_regex_timeout_support():
-    """检查 regex 库是否支持 timeout 参数"""
+    """Check if installed regex version supports timeout parameter."""
     try:
         import regex
     except ImportError:
         return False
+
+
+def mmap_lines(path, encoding='utf-8'):
+    """
+    Open the file using mmap and return the text line by line (preserving newlines).
+    This function falls back to normal line-by-line reading if mmap is unavailable or fails.
+    Returns a generator that produces the decoded string (including newline characters).
+    """
     
-    try:
-        regex.search("test", "test", timeout=0.1)
-        return True
-    except (TypeError, ValueError):
-        print("⚠️  警告：当前 regex 库不支持 timeout 参数，ReDoS 防护将失效。", file=sys.stderr)
-        print("   建议升级：pip install --upgrade regex", file=sys.stderr)
-        return False
+    import mmap as _mmap
+    
+    p = Path(path)
+    if not p.is_file():
+        raise FileNotFoundError(path) # raise error when file not found
+    
+    size = os.path.getsize(path)
+    if size == 0:
+        return # return when file is empty
+
+    with p.open('rb') as f:
+        try:
+            mm = _mmap.mmap(f.fileno(), 0, access=_mmap.ACCESS_READ)
+        except (ValueError, OSError):
+            f.seek(0)
+            for raw in f:
+                yield raw.decode(encoding, errors='replace')
+            return
+
+        try:
+            start = 0
+            size = len(mm)
+            while start < size:
+                nl = mm.find(b"\n", start)
+                if nl == -1:
+                    chunk = mm[start: size]
+                    if chunk:
+                        yield chunk.decode(encoding, errors='replace')
+                    break
+                chunk = mm[start: nl + 1]
+                yield chunk.decode(encoding, errors='replace')
+                start = nl + 1
+        finally:
+            mm.close()

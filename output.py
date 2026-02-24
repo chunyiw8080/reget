@@ -1,10 +1,9 @@
-"""输出格式化和高亮处理"""
 import json
 from utils import Colors
 
 
 def highlight_line(line, matches_map):
-    """使用 ANSI 颜色高亮匹配内容"""
+    """Use ANSI Color code to highlight matched text in the line."""
     if not matches_map:
         return line.rstrip('\n')
 
@@ -28,7 +27,7 @@ def highlight_line(line, matches_map):
 
 
 def format_summary_output(results):
-    """格式化 summary 输出"""
+    """Formatted summary output as plain text with pattern names and matches."""
     output_lines = []
     for pattern_name, matches in results.items():
         if matches:
@@ -39,7 +38,7 @@ def format_summary_output(results):
 
 
 def format_json_output(results, unique=False):
-    """格式化 JSON 输出"""
+    """Formatted JSON output of matched results."""
     if unique:
         output = {name: list(dict.fromkeys(matches)) for name, matches in results.items()}
     else:

@@ -1,259 +1,129 @@
 #!/usr/bin/env python3
 import sys
 import argparse
-import json
-from pathlib import Path
-from collections import OrderedDict
 
-# 依赖检查
-try:
-    import regex
-except ImportError:
-    print("错误：需要 regex 库。请安装：pip install regex", file=sys.stderr)
-    sys.exit(1)
+from utils import Colors, DEFAULT_TIMEOUT
+from config import load_config
+from patterns import compile_patterns_from_config, compile_custom_patterns
+from output import format_summary_output, format_json_output
+from processor import process_input
 
-try:
-    import yaml
-except ImportError:
-    print("错误：需要 PyYAML 库。请安装：pip install pyyaml", file=sys.stderr)
-    sys.exit(1)
-
-# --- ✅ 修复：版本兼容性检查 ---
-REGEX_SUPPORTS_TIMEOUT = False
-try:
-    # timeout 参数应该传给匹配函数，不是 compile()
-    regex.search("test", "test", timeout=0.1)
-    REGEX_SUPPORTS_TIMEOUT = True
-except (TypeError, ValueError) as e:
-    print("⚠️  警告：当前 regex 库不支持 timeout 参数，ReDoS 防护将失效。", file=sys.stderr)
-    print("   建议升级：pip install --upgrade regex", file=sys.stderr)
-
-# --- 常量与配置 ---
-SYSTEM_CONFIG_PATH = Path('/etc/reget/reget.yaml')
-LOCAL_CONFIG_PATH = Path('./reget.yaml')
-DEFAULT_TIMEOUT = 0.5
-
-# ANSI 颜色代码
-class Colors:
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
-    HIGHLIGHTS = [
-        '\033[91m', '\033[92m', '\033[93m', 
-        '\033[94m', '\033[95m', '\033[96m',
-    ]
-    
-    @staticmethod
-    def disable():
-        if not sys.stdout.isatty():
-            Colors.HIGHLIGHTS = ['']
-            Colors.RESET = ''
-
-# --- 数据结构 ---
-class PatternInfo:
-    def __init__(self, name, compiled_regex, color_index=0):
-        self.name = name
-        self.regex = compiled_regex
-        self.color = Colors.HIGHLIGHTS[color_index % len(Colors.HIGHLIGHTS)]
-
-# --- 功能函数 ---
-
-def load_config():
-    config_path = None
-    if SYSTEM_CONFIG_PATH.exists():
-        config_path = SYSTEM_CONFIG_PATH
-    elif LOCAL_CONFIG_PATH.exists():
-        config_path = LOCAL_CONFIG_PATH
-    
-    if not config_path:
-        return None
-
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return yaml.safe_load(f)
-    except Exception as e:
-        print(f"错误：无法解析配置文件 {config_path}: {e}", file=sys.stderr)
-        sys.exit(2)
-
-def compile_patterns_from_config(config, pattern_names, timeout):
-    patterns = []
-    if not config or 'pattern' not in config:
-        return patterns
-        
-    for idx, name in enumerate(pattern_names):
-        try:
-            pattern_data = config['pattern'][name]
-            regex_list = pattern_data.get('regex', [])
-            if not isinstance(regex_list, list):
-                regex_list = [regex_list]
-            
-            for regex_str in regex_list:
-                try:
-                    # ✅ compile() 不传 timeout
-                    compiled = regex.compile(regex_str)
-                    patterns.append(PatternInfo(name, compiled, idx))
-                except regex.error as e:
-                    print(f"错误：模式 '{name}' 编译失败：{e}", file=sys.stderr)
-                    sys.exit(2)
-        except KeyError:
-            print(f"错误：配置文件中未找到模式 '{name}'", file=sys.stderr)
-            sys.exit(2)
-    return patterns
-
-def compile_custom_patterns(custom_args, timeout):
-    patterns = []
-    for idx, item in enumerate(custom_args):
-        if ':' not in item:
-            print(f"错误：自定义模式格式应为 'name:regex'，收到：{item}", file=sys.stderr)
-            sys.exit(2)
-        name, regex_str = item.split(':', 1)
-        try:
-            # ✅ compile() 不传 timeout
-            compiled = regex.compile(regex_str)
-            patterns.append(PatternInfo(f"custom_{name}", compiled, idx + 100))
-        except regex.error as e:
-            print(f"错误：自定义模式 '{name}' 编译失败：{e}", file=sys.stderr)
-            sys.exit(2)
-    return patterns
-
-def highlight_line(line, matches_map):
-    if not matches_map:
-        return line.rstrip('\n')
-
-    result = []
-    i = 0
-    line_len = len(line)
-    sorted_positions = sorted(matches_map.keys())
-    
-    while i < line_len:
-        if i in matches_map:
-            end_pos, color = matches_map[i]
-            result.append(color)
-            result.append(line[i:end_pos])
-            result.append(Colors.RESET)
-            i = end_pos
-        else:
-            result.append(line[i])
-            i += 1
-            
-    return "".join(result).rstrip('\n')
-
-def format_summary_output(results):
-    output_lines = []
-    for pattern_name, matches in results.items():
-        if matches:
-            output_lines.append(f"---{pattern_name}---")
-            for match in matches:
-                output_lines.append(match)
-    return "\n".join(output_lines)
-
-def format_json_output(results, unique=False):
-    if unique:
-        output = {name: list(dict.fromkeys(matches)) for name, matches in results.items()}
-    else:
-        output = results
-    return json.dumps(output, ensure_ascii=False, indent=2)
-
-def process_input(file_obj, patterns, timeout, output_format, do_unique, do_highlight, exit_on_match):
-    """处理输入流"""
-    results = OrderedDict((pat.name, []) for pat in patterns)
-    
-    if output_format == 'json':
-        do_highlight = False
-    
-    try:
-        for line in file_obj:
-            highlight_map = {}
-            line_has_match = False
-            
-            for pat in patterns:
-                try:
-                    # ✅ timeout 传给 finditer()，不是 compile()
-                    if REGEX_SUPPORTS_TIMEOUT:
-                        matches = pat.regex.finditer(line, timeout=timeout)
-                    else:
-                        matches = pat.regex.finditer(line)
-                    
-                    for match in matches:
-                        matched_text = match.group(0)
-                        line_has_match = True
-                        
-                        if do_unique:
-                            if matched_text not in results[pat.name]:
-                                results[pat.name].append(matched_text)
-                        else:
-                            results[pat.name].append(matched_text)
-                        
-                        # 🔥 exit-on-match 逻辑
-                        if exit_on_match:
-                            if do_highlight:
-                                start, end = match.span()
-                                print(highlight_line(line, {start: (end, pat.color)}), flush=True)
-                            elif output_format == 'summary':
-                                print(f"[{pat.name}] {matched_text}", flush=True)
-                            sys.exit(1)
-                        
-                        if do_highlight:
-                            start, end = match.span()
-                            if start not in highlight_map:
-                                highlight_map[start] = (end, pat.color)
-                                
-                except Exception as e:
-                    # ✅ 用字符串判断超时，避免直接引用 TimeoutError
-                    if "timeout" in str(e).lower():
-                        print(f"警告：模式 '{pat.name}' 匹配超时，跳过该行。", file=sys.stderr)
-                        continue
-                    else:
-                        raise
-            
-            if do_highlight and line_has_match and not exit_on_match:
-                print(highlight_line(line, highlight_map), flush=True)
-                
-    except KeyboardInterrupt:
-        print("\n中断退出。", file=sys.stderr)
-        sys.exit(130)
-    except SystemExit:
-        raise
-    except Exception as e:
-        print(f"运行时错误：{e}", file=sys.stderr)
-        sys.exit(2)
-    
-    return results
 
 def main():
     Colors.disable()
 
     parser = argparse.ArgumentParser(
-        description='安全正则匹配工具 (支持 ReDoS 防护、高亮、结构化输出、CI/CD 集成)'
+        description='''
+reget - A secure, pattern-based text extraction tool.
+
+Extract structured data from logs, configs, or streams using predefined or custom regex patterns.
+
+Features:
+  • Predefined patterns for common formats (IP, email, datetime, etc.)
+  • ReDoS-safe: automatic timeout protection for regex matching
+  • Multiple output formats: human-readable summary or JSON
+  • CI/CD ready: --exit-on-match for pipeline gating
+  • Configurable via /etc/reget/reget.yaml
+
+Repository: https://github.com/chunyiw8080/reget
+Config Path: /etc/reget/reget.yaml
+
+exit codes:
+  0   Success, no matches found (or matches found without --exit-on-match)
+  1   Match found with --exit-on-match enabled
+  2   Configuration or runtime error
+  130 User interrupted (Ctrl+C)
+        ''',
+        prog="reget",
+        add_help=True,
+        usage=argparse.SUPPRESS,
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog='''
+examples:
+  # Extract IPv4 and email addresses from a log file
+  $ reget --pattern ipv4,email access.log
+
+  # Scan for secrets in codebase, fail CI if found
+  $ reget --pattern secret_kv --exit-on-match ./src/
+
+  # Output matched URLs as JSON for further processing
+  $ reget --pattern url --output json app.log | jq '.url[]'
+
+  # Highlight matched IPs in real-time log stream
+  $ tail -f /var/log/nginx/access.log | reget --pattern ipv4 --highlight
+
+  # Use custom regex to match AWS keys temporarily
+  $ reget --custom aws_key:"AKIA[0-9A-Z]{16}" --exit-on-match .
+
+  # Process large log file with memory mapping
+  $ reget --pattern datetime --large --stat huge.log
+'''
     )
     parser.add_argument('file', nargs='?', type=argparse.FileType('r', encoding='utf-8'), 
-                        default=sys.stdin, help='输入文件，默认为标准输入')
+                        default=sys.stdin, help='input file (file path or stdin)')
     parser.add_argument('--pattern', '-p', default='',
-                        help='配置文件中的模式名称，多个用逗号分隔')
-    parser.add_argument('--custom', '-c', action='append', default=[],
-                        help='自定义正则，格式 name:regex (可多次使用)')
-    parser.add_argument('--highlight', '-H', action='store_true',
-                        help='高亮显示匹配内容（输出整行，仅适用于 summary 输出）')
-    parser.add_argument('--output', '-o', choices=['summary', 'json'], 
+                        help='''Comma-separated list of predefined pattern names to match.
+Available patterns:
+    • Network: ipv4, ipv6, mac, url
+    • Contact: email, phone
+    • Time: date, datetime, time
+    • Path: posix_path, windows_path
+    • Key-Value: kve (key=value), kvc (key:value)
+Example: --pattern ipv4,email,url
+                        ''')
+    parser.add_argument('--custom', '-c', 
+                        action='append', 
+                        default=[],
+                        help='''Temporary custom regex pattern without modifying config. Can be specified multiple times.
+Format: --custom name:"regex_pattern"
+                        ''')
+    parser.add_argument('--highlight', '-H', 
+                        action='store_true',
+                        help='''Highlight matched text with ANSI colors while preserving original context. 
+Only available with --output=summary.
+                        ''')
+    parser.add_argument('--large', '-l', 
+                        action='store_true',
+                        help='''Use memory-mapped I/O (mmap) for reading large files. 
+Reduces memory usage when processing GB-scale logs.
+                        ''')
+    parser.add_argument('--output', '-o', 
+                        choices=['summary', 'json'], 
                         default='summary',
-                        help='输出格式：summary(默认), json')
-    parser.add_argument('--unique', '-u', action='store_true',
-                        help='去重输出（每个匹配值只出现一次）')
-    parser.add_argument('--stat', '-s', action='store_true',
-                        help='在结束时输出统计信息（仅 summary 模式）')
-    parser.add_argument('--exit-on-match', '-e', action='store_true',
-                        help='匹配到任意结果时立即以状态码 1 退出（用于 CI/CD 门禁）')
-    parser.add_argument('--timeout', '-t', type=float, default=DEFAULT_TIMEOUT,
-                        help=f'匹配超时时间（秒），默认 {DEFAULT_TIMEOUT}')
+                        help='''Format for matched results
+Default: summary (human-readable). Available options: json
+Note: --highlight is auto-disabled for json/yaml output.
+                        ''')
+    parser.add_argument('--unique', '-u', 
+                        action='store_true',
+                        help='''Output each matched value only once (deduplicate results).
+                        ''')
+    parser.add_argument('--stat', '-s', 
+                        action='store_true',
+                        help='''Print match statistics after processing. 
+Only available with --output=summary. Mutually exclusive with --exit-on-match.
+                        ''')
+    parser.add_argument('--exit-on-match', '-e', 
+                        action='store_true',
+                        help='''Exit immediately with status code 1 when any match is found. Designed for CI/CD security gates. 
+                        Mutually exclusive with --stat.
+                        ''')
+    parser.add_argument('--timeout', '-t', 
+                        type=float, 
+                        default=DEFAULT_TIMEOUT, 
+                        help='''Maximum time in seconds for a single regex match operation. 
+Range: 0.1-30.0.
+                        ''')
     
     args = parser.parse_args()
 
     # 参数冲突检查
     if args.output == 'json' and args.highlight:
-        print("提示：--highlight 仅支持 summary 输出格式，已自动禁用。", file=sys.stderr)
+        print("Note: --highlight only supports summary output format, automatically disabled.", file=sys.stderr)
         args.highlight = False
     
     if args.exit_on_match and args.stat:
-        print("提示：--exit-on-match 与 --stat 互斥，已自动禁用 --stat。", file=sys.stderr)
+        print("Note: --exit-on-match and --stat are mutually exclusive, --stat automatically disabled.", file=sys.stderr)
         args.stat = False
 
     # 1. 加载配置
@@ -264,37 +134,54 @@ def main():
     
     if args.pattern:
         if not config:
-            print("错误：使用了 --pattern 但未找到配置文件。", file=sys.stderr)
+            print("Error: --pattern specified but no config file found.", file=sys.stderr)
             sys.exit(2)
         pattern_names = [name.strip() for name in args.pattern.split(',') if name.strip()]
-        all_patterns.extend(compile_patterns_from_config(config, pattern_names, args.timeout))
+        all_patterns.extend(compile_patterns_from_config(config, pattern_names))
     
     if args.custom:
         all_patterns.extend(compile_custom_patterns(args.custom, args.timeout))
         
     if not all_patterns:
-        print("错误：未指定任何匹配模式 (使用 --pattern 或 --custom)", file=sys.stderr)
+        print("Error: No matching patterns specified (use --pattern or --custom)", file=sys.stderr)
         sys.exit(2)
 
     # 3. 处理输入并收集结果
+    input_source = args.file
+    if args.large:
+        # mmap 只能用于真实文件，不能用于 stdin
+        if args.file is sys.stdin or getattr(args.file, 'name', '').startswith('<'):
+            print("Note: --large only supports direct file paths (not stdin), automatically disabled.", file=sys.stderr)
+            args.large = False
+        else:
+            # 关闭 argparse 打开的文件句柄，使用 mmap_line 生成器代替
+            path = args.file.name
+            try:
+                args.file.close()
+            except Exception:
+                pass
+            from utils import mmap_lines
+            input_source = mmap_lines(path)
+
     results = process_input(
-        args.file, 
-        all_patterns, 
-        args.timeout, 
-        args.output, 
-        args.unique, 
+        input_source,
+        all_patterns,
+        args.timeout,
+        args.output,
+        args.unique,
         args.highlight,
         args.exit_on_match
     )
 
     # 4. 格式化并输出结果
-    if args.output == 'summary':
+    # 如果存在hightlight参数，禁用格式化输出
+    if args.output == 'summary' and not args.highlight:
         output_text = format_summary_output(results)
         if output_text:
             print(output_text)
         
         if args.stat:
-            print("\n--- 匹配统计 ---", file=sys.stderr)
+            print("\n--- statistics ---", file=sys.stderr)
             for name, matches in results.items():
                 if matches:
                     print(f"{name}: {len(matches)}", file=sys.stderr)
@@ -304,6 +191,7 @@ def main():
         
 
     sys.exit(0)
+
 
 if __name__ == '__main__':
     main()

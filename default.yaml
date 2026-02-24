@@ -1,63 +1,63 @@
 pattern:
   email:
-    description: "提取电子邮件地址的正则表达式"
+    description: "Regex for extracting email addresses"
     regex: 
       - "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-z]{2,}"
   ipv4:
-    description: "提取IPv4地址的正则表达式"
+    description: "Regex for extracting IPv4 addresses"
     regex: 
       - "([0-9]{1,3}\\.){3}[0-9]{1,3}"
   ipv6:
-    description: "提取IPv6地址的正则表达式"
+    description: "Regex for extracting IPv6 addresses"
     regex: 
       # general ipv6 addresses, e.g 2001:0db8:85a3:0000:0000:8a2e:1370:7334
       - "(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|:(?::[0-9a-fA-F]{1,4}){1,7}|::(?:[fF]{4}(?::0{1,4}){0,1}:)?(?:(?:25[0-5]|(?:2[0-4]|1\\d|[1-9]|)\\d)\\.){3}(?:25[0-5]|(?:2[0-4]|1\\d|[1-9]|)\\d)|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1\\d|[1-9]|)\\d)\\.){3}(?:25[0-5]|(?:2[0-4]|1\\d|[1-9]|)\\d)"
       # compressed ipv6 addresses, e.g 2001:db8::1
       - "::(?:[0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}::(?:[0-9a-fA-F]{1,4}:){0,3}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,4}::(?:[0-9a-fA-F]{1,4}:){0,4}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,3}::(?:[0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}|[0-9a-fA-F]{1,4}::(?:[0-9a-fA-F]{1,4}:){0,7}[0-9a-fA-F]{1,4}|[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){0,5}::"
   mac:
-    description: "提取MAC地址的正则表达式"
+    description: "Regex for extracting MAC addresses"
     regex: 
       - "([0-9A-Fa-f]{2}[:\\-]){5}[0-9A-Fa-f]{2}"
   datetime:
-    description: "提取日期时间的正则表达式"
+    description: "Regex for extracting datetime"
     regex:
       # ISO datetime
       - "\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|[+-](?:[01]\\d|2[0-3]):?[0-5]\\d)?"
       # Nginx/Apache Style datetime
       - "\\d{2}/[A-Za-z]{3}/\\d{4}:\\d{2}:\\d{2}:\\d{2} [+-]\\d{4}"
   time:
-    description: "提取时间的正则表达式"
+    description: "Regex for extracting time"
     regex:
       - "(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d"
   date:
-    description: "提取日期（多种格式）"
+    description: "Regex for extracting date (multiple formats)"
     regex:
       - "\\d{4}/\\d{2}/\\d{2}"           # 2026/02/01
       - "\\d{4}-\\d{2}-\\d{2}"           # 2026-02-01
       - "\\d{2} [A-Za-z]{3} \\d{4}"      # 01 Feb 2026
       - "\\d{2}-[A-Za-z]{3}-\\d{4}" 
   url:
-    description: "提取URL的正则表达式"
+    description: "Regex for extracting URLs"
     regex:
       - "https?://[A-Za-z0-9.-]+(?:\\:[0-9]+)?(?:/[A-Za-z0-9._~:/?#\\[\\]@!$&'()*+,;=%-]*)?"
   phone:
-    description: "提取电话号码的正则表达式"
+    description: "Regex for extracting phone numbers"
     regex:
-      - "[0-9]{11}"
+      - "(?<!\\d)1[3-9]\\d{9}(?![\\d@])"
   posix_path:
-    description: "提取文件路径的正则表达式"
+    description: "Regex for extracting POSIX file paths"
     regex:
       - "/[a-zA-Z0-9._/\\-]+"
   windows_path:
-    description: "提取Windows文件路径的正则表达式"
+    description: "Regex for extracting Windows file paths"
     regex:
       - "[a-zA-Z]:\\\\[a-zA-Z0-9._\\\\\\-]+"
   kve:
-    description: "提取键值对的正则表达式，格式为 key=value"
+    description: "Regex for extracting key-value pairs, format key=value"
     regex:
       - "[a-zA-Z_][a-zA-Z0-9_-]*\\s*=\\s*[^\\s]+"
   kvc:
-    description: "提取键值对的正则表达式，格式为 key:value"
+    description: "Regex for extracting key-value pairs, format key:value"
     regex:
       - "[a-zA-Z_][a-zA-Z0-9_-]*\\s*:\\s*[^\\s]+"
   

@@ -1,9 +1,7 @@
-"""核心处理逻辑：读取、匹配、收集结果"""
 import sys
 from collections import OrderedDict
 from output import highlight_line
 
-# 导入 regex 以支持 timeout
 try:
     import regex
     REGEX_SUPPORTS_TIMEOUT = False
@@ -18,16 +16,16 @@ except ImportError:
 
 def process_input(file_obj, patterns, timeout, output_format, do_unique, do_highlight, exit_on_match):
     """
-    处理输入流，执行正则匹配并收集结果
+    Process the input stream, perform Regex matching, and collect the results.
     
     Args:
-        file_obj: 输入文件对象
-        patterns: PatternInfo 列表
-        timeout: 匹配超时时间
-        output_format: 输出格式 ('summary' 或 'json')
-        do_unique: 是否去重
-        do_highlight: 是否高亮显示
-        exit_on_match: 匹配到结果时是否立即退出
+        file_obj: file object
+        patterns: Pattern list defined in user config or in the built-in patterns
+        timeout: match timeout in seconds
+        output_format: output format, summary or json
+        do_unique: Remove duplicates
+        do_highlight: Show highlighted text
+        exit_on_match: non-zero exit immediately when a match is found
     
     Returns:
         OrderedDict: {pattern_name: [matches]}
@@ -40,58 +38,59 @@ def process_input(file_obj, patterns, timeout, output_format, do_unique, do_high
     try:
         for line in file_obj:
             highlight_map = {}
-            line_has_match = False
+            # line_has_match = False
             
-            for pat in patterns:
+            for pattern in patterns:
                 try:
-                    # ✅ timeout 传给 finditer()，不是 compile()
                     if REGEX_SUPPORTS_TIMEOUT:
-                        matches = pat.regex.finditer(line, timeout=timeout)
+                        matches = pattern.regex.finditer(line, timeout=timeout)
                     else:
-                        matches = pat.regex.finditer(line)
+                        matches = pattern.regex.finditer(line)
                     
                     for match in matches:
                         matched_text = match.group(0)
-                        line_has_match = True
+                        # line_has_match = True
                         
                         if do_unique:
-                            if matched_text not in results[pat.name]:
-                                results[pat.name].append(matched_text)
+                            if matched_text not in results[pattern.name]:
+                                results[pattern.name].append(matched_text)
                         else:
-                            results[pat.name].append(matched_text)
+                            results[pattern.name].append(matched_text)
                         
-                        # 🔥 exit-on-match 逻辑
+                        # exit-on-match
                         if exit_on_match:
                             if do_highlight:
                                 start, end = match.span()
-                                print(highlight_line(line, {start: (end, pat.color)}), flush=True)
+                                print(highlight_line(line, {start: (end, pattern.color)}), flush=True)
                             elif output_format == 'summary':
-                                print(f"[{pat.name}] {matched_text}", flush=True)
+                                print(f"[{pattern.name}] {matched_text}", flush=True)
                             sys.exit(1)
                         
                         if do_highlight:
                             start, end = match.span()
                             if start not in highlight_map:
-                                highlight_map[start] = (end, pat.color)
+                                highlight_map[start] = (end, pattern.color)
                                 
                 except Exception as e:
-                    # ✅ 用字符串判断超时，避免直接引用 TimeoutError
+                    # Use keywords to determine timeouts, and avoid directly referencing TimeoutError.
                     if "timeout" in str(e).lower():
-                        print(f"警告：模式 '{pat.name}' 匹配超时，跳过该行。", file=sys.stderr)
+                        print(f"警告：模式 '{pattern.name}' 匹配超时，跳过该行。", file=sys.stderr)
                         continue
                     else:
                         raise
             
-            if do_highlight and line_has_match and not exit_on_match:
+            if do_highlight and not exit_on_match:
+                # Always output the whole text line when highlight is enabled
+                # Return the original line content if no matches
                 print(highlight_line(line, highlight_map), flush=True)
                 
     except KeyboardInterrupt:
-        print("\n中断退出。", file=sys.stderr)
+        print("\nKeyboard Interrupted", file=sys.stderr)
         sys.exit(130)
     except SystemExit:
         raise
     except Exception as e:
-        print(f"运行时错误：{e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(2)
     
     return results

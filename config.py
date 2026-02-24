@@ -1,45 +1,39 @@
-"""配置加载和管理"""
 import sys
+import yaml
 from pathlib import Path
 from utils import SYSTEM_CONFIG_PATH
 
-try:
-    import yaml
-except ImportError:
-    print("错误：需要 PyYAML 库。请安装：pip install pyyaml", file=sys.stderr)
-    sys.exit(1)
-
 
 def get_base_path():
-    """获取程序运行基准路径（兼容 PyInstaller）"""
+    """Get the base path for config files, handling both normal and PyInstaller environments."""
     if hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS)
     return Path(__file__).parent
 
 
 def get_embedded_default_config_path():
-    """获取打包进二进制的 default.yaml 路径"""
+    """Get the path to the embedded default config file (for PyInstaller)."""
     return get_base_path() / "default.yaml"
 
 
 def load_config():
     """
-    加载配置文件
-    优先级：
-    1. 系统配置
-    2. 当前工作目录 config.yaml
-    3. 打包内置 default.yaml
+    Load configuration files
+    Priority:
+    1. System configuration
+    2. Current working directory config.yaml
+    3. Packaged built-in default.yaml
     """
 
-    # 1️⃣ 系统级配置
+    # System config
     if SYSTEM_CONFIG_PATH.exists():
         config_path = SYSTEM_CONFIG_PATH
 
-    # 2️⃣ 当前工作目录 config.yaml（用户可自定义）
-    elif Path("config.yaml").exists():
-        config_path = Path("config.yaml")
+    # local config in current directory
+    elif Path("default.yaml").exists():
+        config_path = Path("default.yaml")
 
-    # 3️⃣ 内置默认配置（PyInstaller 打包资源）
+    # Built-in default config (for PyInstaller)
     else:
         embedded = get_embedded_default_config_path()
         if embedded.exists():
@@ -51,5 +45,5 @@ def load_config():
         with open(config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
     except Exception as e:
-        print(f"错误：无法解析配置文件 {config_path}: {e}", file=sys.stderr)
+        print(f"Error: Failed to parse config file {config_path}: {e}", file=sys.stderr)
         sys.exit(2)
