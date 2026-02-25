@@ -1,31 +1,42 @@
 ## Introduction
 reget - A secure, pattern-based text extraction tool for DevOps and security workflows.
 
-Extract structured data from logs, configs, or streams using predefined or custom regex patterns.
-Built with ReDoS protection (configurable timeout) and YAML-based pattern management.
+Detect IPs, emails, secrets, timestamps, and more from logs or streams.
+Built-in ReDoS protection and CI-friendly exit modes.
 
-### Features
-- Predefined patterns for common formats (IP, email, datetime, etc.)
-- ReDoS-safe: automatic timeout protection for regex matching
-- Multiple output formats: human-readable summary, JSON, or YAML
-- CI/CD ready: --exit-on-match for pipeline gating
-- Configurable via /etc/reget/reget.yaml or ./default.yaml
+## Why reget?
 
-### Environment
-- Python: 3.12.2
-- GLIBC: 2.14+
+Unlike grep:
+- Pattern groups are predefined and semantically named
+- Supports structured JSON output
+- Built-in ReDoS protection (timeout per match)
+- CI/CD friendly (--exit-on-match)
+
+Unlike ad-hoc regex scripts:
+- YAML-based rule management
+- Multiple patterns in a single run
+- Safe for untrusted input
+
+## Features
+- Predefined semantic patterns (IP, email, datetime, URL, key-value, etc.)
+- Multiple pattern matching in a single run
+- ReDoS-safe: per-regex timeout protection
+- CI/CD ready: fail pipelines on sensitive matches
+- Human-readable or structured JSON output
+- Stream-friendly: works with stdin (e.g., tail -f)
+
+## Environment
+- Python: >=3.10.9
+- GLIBC: >=2.14
+Prebuilt binary is compiled on CentOS 7 for maximum glibc compatibility.
+
+For Fedora 30+, install to get libcrypt.so.1:
+  ``sudo dnf install libxcrypt-compat``
+
 
 ## Build
 ```bash
 pyinstaller --onefile --clean --strip --add-data "default.yaml:." --name reget reget.py
-```
-
-## Usage
-```text
-usage: reget [-h] [--pattern PATTERN] [--custom CUSTOM] [--highlight]
-             [--stat] [--unique] [--output {summary,json,yaml}]
-             [--timeout TIMEOUT] [--large] [--exit-on-match]
-             [file]
 ```
 
 ## Arguments
@@ -89,7 +100,7 @@ general:
   $ reget --pattern ipv4,email access.log
 
   # Scan for secrets in codebase, fail CI if found
-  $ reget --pattern secret_kv --exit-on-match ./src/
+  $ reget --pattern kvc --exit-on-match ./src/
 
   # Output matched URLs as JSON for further processing
   $ reget --pattern url --output json app.log | jq '.url[]'
