@@ -1,6 +1,5 @@
 """工具函数和常量定义"""
 import sys
-import regex
 import os
 from pathlib import Path
 
@@ -73,3 +72,20 @@ def mmap_lines(path, encoding='utf-8'):
                 start = nl + 1
         finally:
             mm.close()
+
+
+def list_patterns(config=None):
+    """
+    List all patterns definded in the config file or defalt config file.
+    """
+    patterns = config.get('pattern', {})
+    if not patterns:
+        return ""
+    result = []
+    for key, value in patterns.items():
+        desc = value.get('description', '')
+        if desc:
+            result.append(f"{key}: {desc}")
+        else:
+            result.append(f"{key}: -")
+    return "\n".join(result)

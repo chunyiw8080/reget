@@ -40,6 +40,8 @@ def load_config():
             config_path = embedded
         else:
             return None
+        
+    # print(config_path)
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:

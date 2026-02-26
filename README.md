@@ -30,7 +30,7 @@ Unlike ad-hoc regex scripts:
 - GLIBC: >=2.14
 Prebuilt binary is compiled on CentOS 7 for maximum glibc compatibility.
 
-For Fedora 30+, install to get libcrypt.so.1:
+For Fedora 30+, install libxcrypt-compat to get libcrypt.so.1:
   ``sudo dnf install libxcrypt-compat``
 
 
@@ -46,6 +46,7 @@ positional arguments:
 
 
 pattern selection:
+  --list-patterns       List all available pattern names and descriptions
   --pattern, -p PATTERN
                         Comma-separated list of predefined pattern names to match.
                         Available patterns:

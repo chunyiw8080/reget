@@ -2,12 +2,20 @@
 import sys
 import argparse
 
-from utils import Colors, DEFAULT_TIMEOUT
+from utils import Colors, DEFAULT_TIMEOUT, list_patterns
 from config import load_config
 from patterns import compile_patterns_from_config, compile_custom_patterns
 from output import format_summary_output, format_json_output
 from processor import process_input
 
+def disable_other_args(args, allowed_args):
+    for arg in vars(args):
+        if arg not in allowed_args:
+            value = getattr(args, arg)
+            if isinstance(value, bool):
+                setattr(args, arg, False)
+            elif value is not None:
+                setattr(args, arg, None)
 
 def main():
     Colors.disable()
@@ -114,10 +122,12 @@ Mutually exclusive with --stat.
                         help='''Maximum time in seconds for a single regex match operation. 
 Range: 0.1-30.0.
                         ''')
+    parser.add_argument('--list-patterns', action='store_true',
+                    help='List all available pattern names and descriptions')
     
     args = parser.parse_args()
 
-    # 参数冲突检查
+    # args conflicts handling
     if args.output == 'json' and args.highlight:
         print("Note: --highlight only supports summary output format, automatically disabled.", file=sys.stderr)
         args.highlight = False
@@ -126,10 +136,19 @@ Range: 0.1-30.0.
         print("Note: --exit-on-match and --stat are mutually exclusive, --stat automatically disabled.", file=sys.stderr)
         args.stat = False
 
-    # 1. 加载配置
     config = load_config()
+
+    if args.list_patterns:
+        config_paterns = list_patterns(config)
+        disable_other_args(args, allowed_args=['list-patterns'])
+        if config_paterns:
+            print(f"Available patterns\n{config_paterns}")
+            sys.exit(0)
+        else:
+            print("No patterns found in configuration", file=sys.stderr)
+            sys.exit(2)
     
-    # 2. 收集所有模式
+    # collect all patterns to apply
     all_patterns = []
     
     if args.pattern:
@@ -146,15 +165,14 @@ Range: 0.1-30.0.
         print("Error: No matching patterns specified (use --pattern or --custom)", file=sys.stderr)
         sys.exit(2)
 
-    # 3. 处理输入并收集结果
+    # 3. process input
     input_source = args.file
     if args.large:
-        # mmap 只能用于真实文件，不能用于 stdin
+        # mmap only used for real file paths, not stdin or pipes
         if args.file is sys.stdin or getattr(args.file, 'name', '').startswith('<'):
             print("Note: --large only supports direct file paths (not stdin), automatically disabled.", file=sys.stderr)
             args.large = False
         else:
-            # 关闭 argparse 打开的文件句柄，使用 mmap_line 生成器代替
             path = args.file.name
             try:
                 args.file.close()
