@@ -7,7 +7,7 @@ DEFAULT_TIMEOUT = 0.5
 def get_config_path():
     # Windows config path
     if sys.platform.startswith('win'):
-        # check if program is exe
+        # check if program is packed as .exe
         if getattr(sys, 'frozen', False):
             # full path of .exe
             base_dir = Path(sys.executable).parent
@@ -34,18 +34,12 @@ class Colors:
             Colors.HIGHLIGHTS = ['']
             Colors.RESET = ''
 
-def check_regex_timeout_support():
-    """Check if installed regex version supports timeout parameter."""
-    try:
-        import regex
-    except ImportError:
-        return False
-
 def mmap_lines(path, encoding='utf-8'):
     """
     Open the file using mmap and return the text line by line (preserving newlines).
     This function falls back to normal line-by-line reading if mmap is unavailable or fails.
     Returns a generator that produces the decoded string (including newline characters).
+    Used by --large argument to efficiently process large files without loading them entirely into memory.
     """
     import mmap as _mmap
     
@@ -55,7 +49,7 @@ def mmap_lines(path, encoding='utf-8'):
     
     size = os.path.getsize(path)
     if size == 0:
-        return # return when file is empty
+        return # return None when file is empty
 
     with p.open('rb') as f:
         try:
@@ -97,3 +91,4 @@ def list_patterns(config=None):
         else:
             result.append(f"{key}: -")
     return "\n".join(result)
+

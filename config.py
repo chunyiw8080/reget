@@ -42,3 +42,22 @@ def load_config():
     except Exception as e:
         print(f"Error: Failed to parse config file {config_path}: {e}", file=sys.stderr)
         sys.exit(2)
+
+def init_config():
+    path = get_config_path()
+    if path.exists():
+        print(f"Error: Config file already exists at {path}", file=sys.stderr)
+        sys.exit(1)
+    else:
+        try:
+            embedded = get_embedded_default_config_path()
+            if embedded.exists():
+                with embedded.open('r', encoding='utf-8') as src, path.open('w', encoding='utf-8') as dst:
+                    dst.write(src.read())
+                print(f"Config file initialized at {path}")
+            else:
+                print("Error: Embedded default config not found. Cannot initialize config file.", file=sys.stderr)
+                sys.exit(1)
+        except Exception as e:
+            print(f"Error: Failed to initialize config file: {e}", file=sys.stderr)
+            sys.exit(1)

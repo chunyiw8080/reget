@@ -52,9 +52,11 @@ positional arguments:
 pattern selection:
   --list-patterns       List all available pattern names and descriptions
 
+  --init-config         Copy the built-in configuration file to the specified path.
+
   --pattern, -p PATTERN
                         Comma-separated list of predefined pattern names to match.
-                        Available patterns:
+                        Built-in patterns:
                           -> Network: ipv4, ipv6, mac, url
                           -> Contact: email, phone
                           -> Time: date, datetime, time

@@ -3,7 +3,7 @@ import sys
 import argparse
 
 from utils import Colors, DEFAULT_TIMEOUT, list_patterns
-from config import load_config
+from config import load_config, init_config
 from patterns import compile_patterns_from_config, compile_custom_patterns
 from output import format_summary_output, format_json_output
 from processor import process_input
@@ -27,16 +27,17 @@ reget - A secure, pattern-based text extraction tool.
 Extract structured data from logs, configs, or streams using predefined or custom regex patterns.
 
 Features:
-  • Predefined patterns for common formats (IP, email, datetime, etc.)
-  • ReDoS-safe: automatic timeout protection for regex matching
-  • Multiple output formats: human-readable summary or JSON
-  • CI/CD ready: --exit-on-match for pipeline gating
-  • Configurable via /etc/reget/reget.yaml
+  • Unlimited patterns can be added in the config file
+  • Multiple pattern matching in a single run
+  • ReDoS-safe: per-regex timeout protection
+  • CI/CD ready: fail pipelines on sensitive matches
+  • Human-readable or structured JSON output
+  • Stream-friendly: works with stdin (e.g., tail -f)
 
 Repository: https://github.com/chunyiw8080/reget
 Config Path: 
   • Linux: /etc/reget/reget.yaml
-  • Windows: ./reget.yaml (same directory as executable)
+  • Windows: ./reget.yaml (same directory as reget.exe)
 
 exit codes:
   0   Success, no matches found (or matches found without --exit-on-match)
@@ -69,16 +70,30 @@ examples:
   $ reget --pattern datetime --large --stat huge.log
 '''
     )
-    parser.add_argument('file', nargs='?', type=argparse.FileType('r', encoding='utf-8'), 
-                        default=sys.stdin, help='input file (file path or stdin)')
+    parser.add_argument('file', 
+                        nargs='?', 
+                        type=argparse.FileType('r', encoding='utf-8'), 
+                        default=sys.stdin, 
+                        help='''input file (file path or stdin)
+                        ''')
+    
+    parser.add_argument('--version', '-v', 
+                        action='version', 
+                        version='''reget 1.0.0
+                        ''')
+
+    parser.add_argument('--init-config', 
+                        action='store_true',
+                        help='''Copy the built-in configuration file to the specified path.
+                        ''')
+    
+    parser.add_argument('--list-patterns', action='store_true',
+                    help='''List all available pattern names and descriptions
+                    ''')
+    
     parser.add_argument('--pattern', '-p', default='',
                         help='''Comma-separated list of predefined pattern names to match.
-Available patterns:
-    • Network: ipv4, ipv6, mac, url
-    • Contact: email, phone
-    • Time: date, datetime, time
-    • Path: posix_path, windows_path
-    • Key-Value: kve (key=value), kvc (key:value)
+Built-in patterns: email, phone, ipv4, ipv6, mac, url, datetime, date, time, date, kvc, kve... 
 Example: --pattern ipv4,email,url
                         ''')
     parser.add_argument('--custom', '-c', 
@@ -124,8 +139,7 @@ Mutually exclusive with --stat.
                         help='''Maximum time in seconds for a single regex match operation. 
 Range: 0.1-30.0.
                         ''')
-    parser.add_argument('--list-patterns', action='store_true',
-                    help='List all available pattern names and descriptions')
+
     
     args = parser.parse_args()
 
@@ -139,6 +153,11 @@ Range: 0.1-30.0.
         args.stat = False
 
     config = load_config()
+
+    if args.init_config:
+        disable_other_args(args, allowed_args=['init_config'])
+        init_config()
+        sys.exit(0)
 
     if args.list_patterns:
         config_paterns = list_patterns(config)
@@ -163,7 +182,7 @@ Range: 0.1-30.0.
     if args.custom:
         all_patterns.extend(compile_custom_patterns(args.custom, args.timeout))
         
-    if not all_patterns:
+    if not all_patterns and not args.init_config and not args.list_patterns:
         print("Error: No matching patterns specified (use --pattern or --custom)", file=sys.stderr)
         sys.exit(2)
 
@@ -193,8 +212,8 @@ Range: 0.1-30.0.
         args.exit_on_match
     )
 
-    # 4. 格式化并输出结果
-    # 如果存在hightlight参数，禁用格式化输出
+    # 4. formatted and output results
+    # disable json output if --highlight is enabled
     if args.output == 'summary' and not args.highlight:
         output_text = format_summary_output(results)
         if output_text:
