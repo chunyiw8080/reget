@@ -1,11 +1,14 @@
-"""工具函数和常量定义"""
 import sys
 import os
 from pathlib import Path
 
-SYSTEM_CONFIG_PATH = Path('/etc/reget/reget.yaml')
-# SYSTEM_CONFIG_PATH = Path('./default.yaml')
 DEFAULT_TIMEOUT = 0.5
+
+def get_config_path():
+    if sys.platform.startswith('win'):
+        return Path('./reget.yaml')
+    else:
+        return Path('/etc/reget/reget.yaml')
 
 # ANSI Color codes for highlighting
 class Colors:
@@ -22,7 +25,6 @@ class Colors:
             Colors.HIGHLIGHTS = ['']
             Colors.RESET = ''
 
-
 def check_regex_timeout_support():
     """Check if installed regex version supports timeout parameter."""
     try:
@@ -30,14 +32,12 @@ def check_regex_timeout_support():
     except ImportError:
         return False
 
-
 def mmap_lines(path, encoding='utf-8'):
     """
     Open the file using mmap and return the text line by line (preserving newlines).
     This function falls back to normal line-by-line reading if mmap is unavailable or fails.
     Returns a generator that produces the decoded string (including newline characters).
     """
-    
     import mmap as _mmap
     
     p = Path(path)
@@ -72,7 +72,6 @@ def mmap_lines(path, encoding='utf-8'):
                 start = nl + 1
         finally:
             mm.close()
-
 
 def list_patterns(config=None):
     """

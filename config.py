@@ -1,8 +1,9 @@
 import sys
 import yaml
 from pathlib import Path
-from utils import SYSTEM_CONFIG_PATH
+from utils import get_config_path
 
+SYSTEM_CONFIG_PATH = get_config_path()
 
 def get_base_path():
     """Get the base path for config files, handling both normal and PyInstaller environments."""
@@ -24,15 +25,9 @@ def load_config():
     2. Current working directory config.yaml
     3. Packaged built-in default.yaml
     """
-
     # System config
     if SYSTEM_CONFIG_PATH.exists():
         config_path = SYSTEM_CONFIG_PATH
-
-    # local config in current directory
-    elif Path("default.yaml").exists():
-        config_path = Path("default.yaml")
-
     # Built-in default config (for PyInstaller)
     else:
         embedded = get_embedded_default_config_path()
@@ -40,8 +35,6 @@ def load_config():
             config_path = embedded
         else:
             return None
-        
-    # print(config_path)
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:

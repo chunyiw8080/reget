@@ -34,7 +34,9 @@ Features:
   • Configurable via /etc/reget/reget.yaml
 
 Repository: https://github.com/chunyiw8080/reget
-Config Path: /etc/reget/reget.yaml
+Config Path: 
+  • Linux: /etc/reget/reget.yaml
+  • Windows: ./reget.yaml (same directory as executable)
 
 exit codes:
   0   Success, no matches found (or matches found without --exit-on-match)
