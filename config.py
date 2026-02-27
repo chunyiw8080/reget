@@ -14,7 +14,7 @@ def get_base_path():
 
 def get_embedded_default_config_path():
     """Get the path to the embedded default config file (for PyInstaller)."""
-    return get_base_path() / "default.yaml"
+    return get_base_path() / "reget.yaml"
 
 
 def load_config():

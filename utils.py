@@ -5,9 +5,18 @@ from pathlib import Path
 DEFAULT_TIMEOUT = 0.5
 
 def get_config_path():
+    # Windows config path
     if sys.platform.startswith('win'):
-        return Path('./reget.yaml')
+        # check if program is exe
+        if getattr(sys, 'frozen', False):
+            # full path of .exe
+            base_dir = Path(sys.executable).parent
+        else:
+            # config path in development environment
+            base_dir = Path(__file__).parent
+        return base_dir / 'reget.yaml'
     else:
+        # Linux/macOS config path
         return Path('/etc/reget/reget.yaml')
 
 # ANSI Color codes for highlighting
