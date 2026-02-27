@@ -31,8 +31,10 @@ Unlike ad-hoc regex scripts:
 - GLIBC: >=2.14
 Prebuilt binary is compiled on CentOS 7 for maximum glibc compatibility.
 
-For Fedora 30+, install libxcrypt-compat to get libcrypt.so.1:
-  ``sudo dnf install libxcrypt-compat``
+If the following error occurs, please manually install the dependencies ``sudo dnf install libxcrypt-compat``, or rebuild the binary file on the target machine.
+```text
+[PYI-1732:ERROR] Failed to load Python shared library '/tmp/_MEIqLEsjJ/libpython3.10.so.1.0': libcrypt.so.1: cannot open shared object file: No such file or directory
+```
 
 ## Config file
 - Windows: `base_dir / 'reget.yaml'`

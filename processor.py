@@ -74,7 +74,7 @@ def process_input(file_obj, patterns, timeout, output_format, do_unique, do_high
                 except Exception as e:
                     # Use keywords to determine timeouts, and avoid directly referencing TimeoutError.
                     if "timeout" in str(e).lower():
-                        print(f"警告：模式 '{pattern.name}' 匹配超时，跳过该行。", file=sys.stderr)
+                        print(f"Warning: Pattern '{pattern.name}' matching timed out, skipping line.", file=sys.stderr)
                         continue
                     else:
                         raise
