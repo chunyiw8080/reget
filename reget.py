@@ -180,7 +180,7 @@ Range: 0.1-30.0.
         all_patterns.extend(compile_patterns_from_config(config, pattern_names))
     
     if args.custom:
-        all_patterns.extend(compile_custom_patterns(args.custom, args.timeout))
+        all_patterns.extend(compile_custom_patterns(args.custom))
         
     if not all_patterns and not args.init_config and not args.list_patterns:
         print("Error: No matching patterns specified (use --pattern or --custom)", file=sys.stderr)
