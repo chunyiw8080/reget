@@ -19,6 +19,7 @@ Unlike ad-hoc regex scripts:
 
 ## Features
 - Predefined semantic patterns (IP, email, datetime, URL, key-value, etc.)
+- Unlimited patterns can be added in the config file
 - Multiple pattern matching in a single run
 - ReDoS-safe: per-regex timeout protection
 - CI/CD ready: fail pipelines on sensitive matches
@@ -33,10 +34,13 @@ Prebuilt binary is compiled on CentOS 7 for maximum glibc compatibility.
 For Fedora 30+, install libxcrypt-compat to get libcrypt.so.1:
   ``sudo dnf install libxcrypt-compat``
 
+## Config file
+- Windows: `base_dir / 'reget.yaml'`
+- Linux: `/etc/reget/reget.yaml`
 
 ## Build
 ```bash
-pyinstaller --onefile --clean --strip --add-data "default.yaml:." --name reget reget.py
+pyinstaller --onefile --clean --strip --add-data "reget.yaml:." --name reget reget.py
 ```
 
 ## Arguments
@@ -47,6 +51,7 @@ positional arguments:
 
 pattern selection:
   --list-patterns       List all available pattern names and descriptions
+
   --pattern, -p PATTERN
                         Comma-separated list of predefined pattern names to match.
                         Available patterns:
@@ -64,7 +69,7 @@ pattern selection:
 
 output control:
   --highlight, -H       Highlight matched text with ANSI colors while preserving
-                        original line context. Only available with --output=summary.
+                        original context. Only available with --output=summary.
 
   --stat, -s            Print match statistics after processing.
                         Only available with --output=summary. Mutually exclusive with --exit-on-match.
